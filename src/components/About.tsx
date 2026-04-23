@@ -43,7 +43,7 @@ export function About() {
   }, []);
 
   return (
-    <section id="about" ref={containerRef} className="py-40 px-6 relative w-full overflow-hidden bg-white/[0.02] border-t border-white/10">
+    <section id="about" ref={containerRef} className="py-24 md:py-32 px-6 relative w-full overflow-hidden bg-white/[0.02] border-t border-white/10">
       {/* Sticky Parallax Background Text */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
         <motion.h2 

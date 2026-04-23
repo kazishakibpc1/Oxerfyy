@@ -18,7 +18,7 @@ export function HowWeWork() {
   const pathLength = useTransform(scrollYProgress, [0, 0.8], [0, 1]);
 
   return (
-    <section className="py-32 px-6 bg-base overflow-hidden relative z-10" ref={containerRef}>
+    <section className="py-24 md:py-32 px-6 bg-base overflow-hidden relative z-10" ref={containerRef}>
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-24">
           <motion.h2 

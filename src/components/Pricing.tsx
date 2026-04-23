@@ -46,7 +46,7 @@ const packages = [
 
 export function Pricing() {
   return (
-    <section id="pricing" className="py-32 px-6 bg-base border-t border-white/10">
+    <section id="pricing" className="py-24 md:py-32 px-6 bg-base border-t border-white/10">
       <div className="max-w-7xl mx-auto">
         <motion.div 
           initial={{ opacity: 0, y: 40 }}
