@@ -43,7 +43,7 @@ const services = [
 
 export function Services() {
   return (
-    <section id="services" className="py-24 md:py-32 px-6 relative z-10 bg-black rounded-b-[40px] w-full overflow-hidden">
+    <section id="services" className="py-32 px-6 relative z-10 bg-black rounded-b-[40px] w-full overflow-hidden">
       <div className="max-w-7xl mx-auto">
         <div className="flex overflow-hidden mb-20">
           <motion.h2 
@@ -81,11 +81,16 @@ function ServiceRow({ service, index }: { service: any, index: number }) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  const isVisible = isMobile || isHovered;
 
   return (
     <motion.div
@@ -93,11 +98,11 @@ function ServiceRow({ service, index }: { service: any, index: number }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6, delay: index * 0.1 }}
-      onMouseEnter={() => !isMobile && setIsHovered(true)}
-      onMouseLeave={() => !isMobile && setIsHovered(false)}
-      className={`group border-b border-white/10 border-l-4 border-l-transparent ${service.accent} transition-all duration-400`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={`group border-b border-white/10 border-l-4 border-l-transparent ${service.accent} transition-all duration-400 cursor-none`}
       style={{
-        backgroundColor: isHovered && !isMobile ? 'rgba(255,255,255,0.02)' : 'transparent',
+        backgroundColor: isHovered ? 'rgba(255,255,255,0.02)' : 'transparent',
       }}
       data-cursor="click"
     >
@@ -109,7 +114,7 @@ function ServiceRow({ service, index }: { service: any, index: number }) {
             {service.category}
           </span>
           <motion.div
-            animate={{ rotate: isHovered && !isMobile ? 45 : 0 }}
+            animate={{ rotate: isHovered ? 45 : 0 }}
             transition={{ duration: 0.3 }}
             className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center group-hover:bg-white group-hover:text-base transition-colors"
           >
@@ -119,9 +124,9 @@ function ServiceRow({ service, index }: { service: any, index: number }) {
       </div>
 
       <AnimatePresence>
-        {(isHovered || isMobile) && (
+        {isVisible && (
           <motion.div
-            initial={{ height: isMobile ? 'auto' : 0, opacity: isMobile ? 1 : 0 }}
+            initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}

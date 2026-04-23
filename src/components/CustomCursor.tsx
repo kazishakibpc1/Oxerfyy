@@ -6,11 +6,33 @@ export function CustomCursor() {
   const [isHovering, setIsHovering] = useState(false);
   const [hoverText, setHoverText] = useState("");
   const [hasMoved, setHasMoved] = useState(true);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
 
   const cursorX = useMotionValue(0);
   const cursorY = useMotionValue(0);
 
   useEffect(() => {
+    // Check if device is touch-only
+    const mediaQuery = window.matchMedia("(hover: none) and (pointer: coarse)");
+    setIsTouchDevice(mediaQuery.matches);
+
+    const checkTouch = (e: MediaQueryListEvent) => {
+      setIsTouchDevice(e.matches);
+    };
+
+    mediaQuery.addEventListener("change", checkTouch);
+    return () => mediaQuery.removeEventListener("change", checkTouch);
+  }, []);
+
+  useEffect(() => {
+    if (isTouchDevice) {
+      document.body.style.cursor = "auto";
+      return;
+    }
+
+    // Apply cursor none to body only for non-touch devices
+    document.body.style.cursor = "none";
+
     const moveCursor = (e: MouseEvent) => {
       if (!hasMoved) setHasMoved(true);
       cursorX.set(e.clientX);
@@ -48,8 +70,13 @@ export function CustomCursor() {
     return () => {
       window.removeEventListener("mousemove", moveCursor);
       window.removeEventListener("mouseover", handleMouseOver);
+      document.body.style.cursor = "auto";
     };
-  }, [cursorX, cursorY, hasMoved]);
+  }, [cursorX, cursorY, hasMoved, isTouchDevice]);
+
+  if (isTouchDevice) {
+    return null;
+  }
 
   const cursorColor = "#000000"; // Changed to Black
   const textColor = "#FFFFFF"; // Changed to White for contrast

@@ -125,7 +125,8 @@ export function MiniNavbar() {
                        px-6 py-3 backdrop-blur-xl
                        ${headerShapeClass}
                        border border-white/10 bg-white/5
-                       w-[calc(100%-2rem)] sm:w-[95%] lg:w-full max-w-[1200px]
+                       w-[calc(100%-2rem)] sm:w-[95%] lg:w-full
+                       ${isScrolled ? 'max-w-[850px]' : 'max-w-[1200px]'}
                        transition-all duration-500 ease-in-out shadow-2xl`}>
 
       <div className="flex items-center justify-between w-full gap-x-6 sm:gap-x-8">

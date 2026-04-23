@@ -85,7 +85,7 @@ export function Testimonials() {
   const secondColumn = testimonials.slice(Math.ceil(testimonials.length / 3), Math.ceil(testimonials.length * 2 / 3));
   const thirdColumn = testimonials.slice(Math.ceil(testimonials.length * 2 / 3));
   return (
-    <section id="testimonials" className="py-24 md:py-32 relative z-10 overflow-hidden">
+    <section id="testimonials" className="py-32 relative z-10 overflow-hidden">
       <div className="max-w-[95vw] 2xl:max-w-[1600px] mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
@@ -117,7 +117,7 @@ export function Testimonials() {
             href="https://facebook.com/oxerfy" 
             target="_blank" 
             rel="noopener noreferrer" 
-            className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-full bg-[#1877F2] text-white hover:bg-[#1877F2]/90 font-medium transition-all duration-300 shadow-[0_0_30px_rgba(24,119,242,0.25)] hover:shadow-[0_0_40px_rgba(24,119,242,0.4)] hover:-translate-y-1 w-full md:w-auto justify-center"
+            className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-full bg-[#1877F2] text-white hover:bg-[#1877F2]/90 font-medium transition-all duration-300 shadow-[0_0_30px_rgba(24,119,242,0.25)] hover:shadow-[0_0_40px_rgba(24,119,242,0.4)] hover:-translate-y-1"
           >
             <Facebook className="w-5 h-5 fill-current" />
             <span className="font-display tracking-wide">Verify Our Reviews on Facebook</span>

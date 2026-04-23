@@ -29,7 +29,7 @@ export function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section className="py-24 md:py-32 px-6 relative z-10 overflow-hidden">
+    <section className="py-32 px-6 relative z-10 overflow-hidden">
       <div className="max-w-4xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 40 }}

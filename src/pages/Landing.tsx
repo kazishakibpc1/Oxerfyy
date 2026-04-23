@@ -15,7 +15,6 @@ import { Footer } from "../components/Footer";
 import { Preloader } from "../components/Preloader";
 import { LivingCanvas } from "../components/LivingCanvas";
 import { AIAutomation } from "../components/AIAutomation";
-import { ScrollProgress } from "../components/ScrollProgress";
 import { BackToTop } from "../components/BackToTop";
 
 export default function Landing() {
@@ -23,8 +22,6 @@ export default function Landing() {
 
   return (
     <main className="min-h-screen text-cream selection:bg-mint selection:text-base overflow-x-hidden w-full">
-      <ScrollProgress />
-      <BackToTop />
       <Preloader onComplete={() => setLoading(false)} />
       
       {!loading && (
@@ -44,6 +41,7 @@ export default function Landing() {
           <Pricing />
           <FAQ />
           <Footer />
+          <BackToTop />
         </>
       )}
     </main>

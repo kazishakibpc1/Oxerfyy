@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { motion } from "motion/react";
 import { Check, Sparkles } from "lucide-react";
 
 const packages = [
   {
     name: "Starter",
-    price: "$499",
+    priceUSD: "$499",
+    priceBDT: "৳54,900",
     desc: "15 days turnaround time.",
     features: [
       "Social Media Customize (Fb, Insta, Linkedin, Pinterest) (no paid Ads)",
@@ -17,7 +19,8 @@ const packages = [
   },
   {
     name: "Professional",
-    price: "$999 - $1499",
+    priceUSD: "$999 - $1499",
+    priceBDT: "৳1,09,890 - ৳1,64,890",
     desc: "1-2 months turnaround time.",
     features: [
       "Social Media Customize (Fb, Insta, Linkedin, Pinterest) (Paid ads with client budget)",
@@ -31,7 +34,8 @@ const packages = [
   },
   {
     name: "Customize",
-    price: "Custom",
+    priceUSD: "Custom",
+    priceBDT: "Custom",
     desc: "3 - 6 months max turnaround time.",
     features: [
       "Enterprise level architecture & design",
@@ -45,18 +49,35 @@ const packages = [
 ];
 
 export function Pricing() {
+  const [currency, setCurrency] = useState<'USD' | 'BDT'>('USD');
+
   return (
-    <section id="pricing" className="py-24 md:py-32 px-6 bg-base border-t border-white/10">
+    <section id="pricing" className="py-32 px-6 bg-base border-t border-white/10">
       <div className="max-w-7xl mx-auto">
         <motion.div 
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="text-center mb-20"
+          className="text-center mb-16"
         >
           <h2 className="text-5xl md:text-7xl font-display font-bold mb-6 text-cream">Simple Pricing</h2>
-          <p className="text-cream/60 text-xl font-light">Transparent packages for every stage of growth.</p>
+          <p className="text-cream/60 text-xl font-light mb-10">Transparent packages for every stage of growth.</p>
+          
+          <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 p-1.5 rounded-full">
+            <button
+              onClick={() => setCurrency('USD')}
+              className={`px-8 py-2.5 rounded-full text-sm font-semibold transition-colors duration-300 ${currency === 'USD' ? 'bg-mint text-base' : 'text-cream/60 hover:text-cream'}`}
+            >
+              USD
+            </button>
+            <button
+              onClick={() => setCurrency('BDT')}
+              className={`px-8 py-2.5 rounded-full text-sm font-semibold transition-colors duration-300 ${currency === 'BDT' ? 'bg-mint text-base' : 'text-cream/60 hover:text-cream'}`}
+            >
+              BDT
+            </button>
+          </div>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
@@ -76,7 +97,9 @@ export function Pricing() {
               )}
               <h3 className="text-3xl font-display font-bold mb-4">{pkg.name}</h3>
               <p className={`mb-8 font-medium text-sm tracking-wide ${pkg.highlight ? 'text-base/80' : 'text-cream/60'}`}>{pkg.desc}</p>
-              <div className="text-5xl font-display font-bold mb-10 tracking-tighter">{pkg.price}</div>
+              <div className="text-5xl lg:text-4xl xl:text-5xl font-display font-bold mb-10 tracking-tighter">
+                {currency === 'USD' ? pkg.priceUSD : pkg.priceBDT}
+              </div>
               
               <ul className="space-y-4 mb-12 flex-grow">
                 {pkg.features.map((feature, j) => (
