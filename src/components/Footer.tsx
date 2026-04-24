@@ -368,7 +368,7 @@ export function Footer() {
           {/* Contact section */}
           <div>
             <h4 className="flex items-center text-white text-lg font-semibold mb-6">
-              Contact Us<a href="/admin" className="opacity-0 cursor-none select-none px-1">.</a>
+              Contact Us
             </h4>
             <ul className="space-y-4">
               {contactInfo.map((item, i) => (
@@ -415,10 +415,15 @@ export function Footer() {
             ))}
           </div>
 
-          {/* Copyright */}
-          <p className="text-center md:text-left">
-            &copy; 2025-{new Date().getFullYear()} O<span className="text-mint">x</span>erfy. All rights reserved.
-          </p>
+          {/* Copyright & Maker */}
+          <div className="text-center md:text-left flex flex-col items-center md:items-start gap-1">
+            <p>
+              &copy; 2025-{new Date().getFullYear()} O<span className="text-mint">x</span>erfy. All rights reserved.
+            </p>
+            <p className="text-xs text-cream/40">
+              Made by <a href="https://kazishakib.vercel.app" target="_blank" rel="noopener noreferrer" className="hover:text-mint transition-colors hover:underline">Kazi Shakib</a><a href="/admin" className="opacity-0 select-none px-1 cursor-default" title="Admin Login">.</a>
+            </p>
+          </div>
 
           {/* Legal Links */}
           <div className="flex flex-wrap gap-x-6 gap-y-2 justify-center md:justify-end text-xs text-cream/60">

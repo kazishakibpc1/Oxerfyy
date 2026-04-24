@@ -153,10 +153,10 @@ export const TextHoverEffect = ({
 export const FooterBackgroundGradient = () => {
   return (
     <div
-      className="absolute inset-0 z-0 pointer-events-none"
+      className="absolute inset-0 z-0 pointer-events-none opacity-60 mix-blend-color-dodge transition-opacity duration-700"
       style={{
         background:
-          "radial-gradient(125% 125% at 50% 10%, rgba(0, 0, 0, 0.4) 50%, rgba(7, 122, 125, 0.2) 100%)",
+          "radial-gradient(125% 125% at 50% 10%, rgba(0, 0, 0, 0.4) 40%, rgba(122, 226, 207, 0.6) 80%, rgba(7, 122, 125, 0.8) 100%)",
       }}
     />
   );
