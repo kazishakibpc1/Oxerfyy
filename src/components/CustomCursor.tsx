@@ -32,6 +32,11 @@ export function CustomCursor() {
 
     // Apply cursor none to body only for non-touch devices
     document.body.style.cursor = "none";
+    
+    // Inject global stylesheet to hide cursor on all elements
+    const styleEl = document.createElement("style");
+    styleEl.innerHTML = `* { cursor: none !important; }`;
+    document.head.appendChild(styleEl);
 
     const moveCursor = (e: MouseEvent) => {
       if (!hasMoved) setHasMoved(true);
@@ -71,6 +76,9 @@ export function CustomCursor() {
       window.removeEventListener("mousemove", moveCursor);
       window.removeEventListener("mouseover", handleMouseOver);
       document.body.style.cursor = "auto";
+      if (document.head.contains(styleEl)) {
+        document.head.removeChild(styleEl);
+      }
     };
   }, [cursorX, cursorY, hasMoved, isTouchDevice]);
 
@@ -78,34 +86,34 @@ export function CustomCursor() {
     return null;
   }
 
-  const cursorColor = "#000000"; // Changed to Black
-  const textColor = "#FFFFFF"; // Changed to White for contrast
+  const cursorColor = "#FFFFFF"; // Changed to White
+  const textColor = "#000000"; // Changed to Black for contrast
 
   return (
     <motion.div
       ref={cursorRef}
-      className="fixed top-0 left-0 pointer-events-none z-[9999] flex flex-col items-start"
+      className="fixed top-0 left-0 pointer-events-none z-[9999] flex flex-col items-start origin-top-left"
       style={{
         x: cursorX,
         y: cursorY,
         opacity: hasMoved ? 1 : 0,
       }}
     >
-      {/* Figma Pointer SVG - Medium Size */}
+      {/* Figma Pointer SVG */}
       <svg
         width="24"
         height="24"
-        viewBox="0 0 32 32"
+        viewBox="0 0 24 24"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className="drop-shadow-md"
         style={{ transform: 'translate(-2px, -2px)' }}
       >
         <path
-          d="M2 2L11.4 28.3C11.6 28.9 12.5 28.9 12.7 28.3L15.4 18.6C15.5 18.2 15.8 17.9 16.2 17.8L25.9 15.1C26.5 14.9 26.5 14 25.9 13.8L2 2Z"
-          fill="#000000"
+          d="M2.5 2L18.5 8.5L11 11.5L7.5 19.5L2.5 2Z"
+          fill={cursorColor}
           stroke="#FFFFFF"
-          strokeWidth="1"
+          strokeWidth="1.5"
           strokeLinejoin="round"
         />
       </svg>
@@ -118,10 +126,10 @@ export function CustomCursor() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shadow-md ml-4 mt-0"
+            className="px-2.5 py-1 rounded-full rounded-tl-none text-[11px] uppercase tracking-wider font-bold whitespace-nowrap shadow-md ml-3"
             style={{ backgroundColor: cursorColor, color: textColor }}
           >
-            {hoverText || "Click"}
+            {hoverText || "View"}
           </motion.div>
         )}
       </AnimatePresence>

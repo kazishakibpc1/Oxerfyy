@@ -421,7 +421,7 @@ export function Footer() {
               &copy; 2025-{new Date().getFullYear()} O<span className="text-mint">x</span>erfy. All rights reserved.
             </p>
             <p className="text-xs text-cream/40">
-              Made by <a href="https://kazishakib.vercel.app" target="_blank" rel="noopener noreferrer" className="hover:text-mint transition-colors hover:underline">Kazi Shakib</a><a href="/admin" className="opacity-0 select-none px-1 cursor-default" title="Admin Login">.</a>
+              Made by <a href="https://kazishakib.vercel.app" target="_blank" rel="noopener noreferrer" className="hover:text-mint transition-colors hover:underline">Kazi Shakib</a><Link to="/admin" className="opacity-0 select-none px-1 cursor-default" title="Admin Login">.</Link>
             </p>
           </div>
 
@@ -432,6 +432,8 @@ export function Footer() {
             <Link to="/privacy" className="hover:text-mint transition-colors hover:underline underline-offset-4">Privacy Policy</Link>
             <span className="hidden md:inline text-white/20">|</span>
             <Link to="/disclaimer" className="hover:text-mint transition-colors hover:underline underline-offset-4">Disclaimer</Link>
+            <span className="hidden md:inline text-white/20">|</span>
+            <Link to="/admin" className="hover:text-mint transition-colors hover:underline underline-offset-4">Admin</Link>
           </div>
         </div>
       </div>
