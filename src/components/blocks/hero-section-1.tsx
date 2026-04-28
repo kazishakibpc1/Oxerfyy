@@ -1,10 +1,12 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { ArrowRight, ChevronRight, Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AnimatedGroup } from '@/components/ui/animated-group'
 import { GradientBars } from '@/components/ui/gradient-bars-background'
 import { Typewriter } from '@/components/Typewriter'
 import { cn } from '@/lib/utils'
+import { collection, onSnapshot, query, where } from 'firebase/firestore'
+import { db } from '../../lib/firebase'
 
 const transitionVariants = {
     item: {
@@ -25,6 +27,20 @@ const transitionVariants = {
 }
 
 export function HeroSection() {
+    const [heroImage, setHeroImage] = useState("https://image2url.com/r2/default/images/1775748582845-aefcc85f-2bce-4b22-a224-ab0c5cb84f45.png")
+
+    useEffect(() => {
+        const q = query(collection(db, 'site_assets'), where('key', '==', 'hero_image'));
+        const unsub = onSnapshot(q, (snap) => {
+            if (!snap.empty) {
+                setHeroImage(snap.docs[0].data().image_url);
+            } else {
+                setHeroImage("https://image2url.com/r2/default/images/1775748582845-aefcc85f-2bce-4b22-a224-ab0c5cb84f45.png");
+            }
+        });
+        return () => unsub();
+    }, []);
+
     return (
         <section className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-black pt-20">
             {/* Parallel Lines Pattern */}
@@ -143,7 +159,7 @@ export function HeroSection() {
                                     <div className="relative rounded-t-sm sm:rounded-t-xl overflow-hidden bg-black">
                                         <img
                                             className="w-full h-auto relative"
-                                            src="https://image2url.com/r2/default/images/1775748582845-aefcc85f-2bce-4b22-a224-ab0c5cb84f45.png"
+                                            src={heroImage}
                                             alt="app screen"
                                             width="2700"
                                             height="1440"

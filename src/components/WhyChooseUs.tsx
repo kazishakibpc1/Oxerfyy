@@ -18,6 +18,8 @@ export function WhyChooseUs() {
     const unsub = onSnapshot(q, (snap) => {
       if (!snap.empty) {
         setImageUrl(snap.docs[0].data().image_url);
+      } else {
+        setImageUrl("https://picsum.photos/seed/workspace/800/1000");
       }
     });
     return () => unsub();

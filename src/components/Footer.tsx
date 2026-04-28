@@ -329,9 +329,12 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 md:gap-8 lg:gap-16 pb-12 pointer-events-auto">
           {/* Brand section */}
           <div className="flex flex-col space-y-4">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
               {logoUrl ? (
-                <img src={logoUrl} alt="Oxerfy Logo" className="h-10 w-auto object-contain" />
+                <>
+                  <img src={logoUrl} alt="Oxerfy Logo" className="h-10 w-auto object-contain" />
+                  <span className="text-white text-3xl font-display font-bold tracking-widest">O<span className="text-mint">X</span>ERFY</span>
+                </>
               ) : (
                 <span className="text-white text-3xl font-display font-bold tracking-widest">O<span className="text-mint">X</span>ERFY</span>
               )}

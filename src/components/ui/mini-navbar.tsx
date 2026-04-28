@@ -81,7 +81,10 @@ export function MiniNavbar() {
   }, [isOpen]);
 
   const logoElement = logoUrl ? (
-    <img src={logoUrl} alt="Oxerfy Logo" className="h-8 w-auto object-contain" />
+    <div className="flex items-center gap-2">
+      <img src={logoUrl} alt="Oxerfy Logo" className="h-8 w-auto object-contain" />
+      <span className="font-display font-bold tracking-widest text-white text-lg">O<span className="text-mint">X</span>ERFY</span>
+    </div>
   ) : (
     <div className="font-display font-bold tracking-widest text-white text-lg">
       O<span className="text-mint">X</span>ERFY

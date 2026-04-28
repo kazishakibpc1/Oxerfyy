@@ -66,16 +66,14 @@ export function Portfolio() {
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'projects'), (snap) => {
-      if (!snap.empty) {
-        setProjects(snap.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            image: data.image_url // map to match component prop expected name
-          };
-        }));
-      }
+      setProjects(snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          image: data.image_url || data.image // map to match component prop expected name
+        };
+      }));
     });
     return () => unsub();
   }, []);

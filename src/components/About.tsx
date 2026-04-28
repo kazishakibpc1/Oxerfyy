@@ -24,6 +24,8 @@ export function About() {
     const unsubAssets = onSnapshot(q, (snap) => {
       if (!snap.empty) {
         setFounderImage(snap.docs[0].data().image_url);
+      } else {
+        setFounderImage("https://picsum.photos/seed/kazi123/120/120");
       }
     });
 

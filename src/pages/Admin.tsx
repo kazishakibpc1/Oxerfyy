@@ -28,6 +28,40 @@ export const convertToWebP = (file: File): Promise<Blob> => {
   });
 };
 
+export const convertToWebPDataURL = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        // Max dimension scaling for data URLs to save Firestore space
+        let width = img.width;
+        let height = img.height;
+        const MAX_DIM = 800;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height *= MAX_DIM / width;
+            width = MAX_DIM;
+          } else {
+            width *= MAX_DIM / height;
+            height = MAX_DIM;
+          }
+        }
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('Failed context'));
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/webp', 0.8));
+      };
+      img.onerror = () => reject(new Error('Image failed'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('Read failed'));
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function Admin() {
   const [session, setSession] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -82,6 +116,7 @@ export default function Admin() {
             { id: 'projects', icon: Layers, label: 'Projects' },
             { id: 'testimonials', icon: MessageSquare, label: 'Testimonials' },
             { id: 'assets', icon: ImageIcon, label: 'Images & Assets' },
+            { id: 'gallery', icon: ImageIcon, label: 'Image Gallery' },
             { id: 'settings', icon: Settings, label: 'Settings' },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all ${activeTab === tab.id ? 'bg-mint text-base shadow-lg shadow-mint/20' : 'hover:bg-white/5 text-cream/70 hover:text-white'}`}>
@@ -116,6 +151,7 @@ const GalleryManager = () => {
   const [items, setItems] = useState<any[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     return onSnapshot(collection(db, 'gallery'), snap => setItems(snap.docs.map(d => ({id: d.id, ...d.data()}))));
@@ -125,23 +161,34 @@ const GalleryManager = () => {
     e.preventDefault();
     if (!file) return;
     setLoading(true);
+    setError(null);
     try {
-      const refObj = ref(storage, `gallery/${Date.now()}.webp`);
-      await uploadBytes(refObj, await convertToWebP(file), { contentType: 'image/webp' });
-      const url = await getDownloadURL(refObj);
+      const url = await convertToWebPDataURL(file);
       await addDoc(collection(db, 'gallery'), { image_url: url });
       setFile(null);
-    } catch(err: any) { alert(err) }
+    } catch(err: any) {
+      console.error(err);
+      setError(err.message || String(err));
+    }
     setLoading(false);
   }
 
   const remove = async (id: string) => {
-    if(confirm('Delete?')) await deleteDoc(doc(db, 'gallery', id));
+    if(confirm('Delete?')) {
+      try {
+        setError(null);
+        await deleteDoc(doc(db, 'gallery', id));
+      } catch(err: any) { 
+        console.error(err);
+        setError(err.message || String(err));
+      }
+    }
   }
 
   return (
     <div className="p-10 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <h1 className="text-4xl font-display font-bold text-white mb-10">Image Gallery</h1>
+      <h1 className="text-4xl font-display font-bold text-white mb-6">Image Gallery</h1>
+      {error && <div className="p-4 bg-red-500/20 border border-red-500 rounded-xl text-red-100 mb-6">{error}</div>}
       
       <form onSubmit={save} className="bg-[#0B192C] p-8 rounded-3xl border border-white/5 flex flex-col md:flex-row gap-6 items-center mb-10">
         <input required type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="w-full text-sm bg-white/5 border border-white/10 rounded-xl p-4 cursor-pointer" />
@@ -164,13 +211,45 @@ const GalleryManager = () => {
 }
 
 const Dashboard = ({ setActiveTab }: any) => {
+  const [error, setError] = useState<string | null>(null);
   const seedDB = async () => {
     if(!confirm("Important: This will add default projects and testimonials to the live database if they don't exist. Proceed?")) return;
     try {
       for(const p of defaultProjects) await addDoc(collection(db, 'projects'), {...p, image_url: p.image});
       for(const t of defaultTestimonials) await addDoc(collection(db, 'testimonials'), {...t, image_url: t.image});
-      alert('Seeded test data successfully!');
-    } catch(err: any) { alert("Error: " + err.message); }
+      setError('Seeded test data successfully!');
+    } catch(err: any) { setError("Error: " + err.message); }
+  }
+
+  const cleanupDuplicates = async () => {
+    if(!confirm("This will remove duplicate entries from your database based on their titles and text. Proceed?")) return;
+    try {
+      // Clean up projects
+      const pSnap = await getDocs(collection(db, 'projects'));
+      const seenProjects = new Set();
+      for (const d of pSnap.docs) {
+        const title = d.data().title;
+        if (seenProjects.has(title)) {
+          await deleteDoc(doc(db, 'projects', d.id));
+        } else {
+          seenProjects.add(title);
+        }
+      }
+
+      // Clean up testimonials
+      const tSnap = await getDocs(collection(db, 'testimonials'));
+      const seenTestimonials = new Set();
+      for (const d of tSnap.docs) {
+        const text = d.data().text;
+        if (seenTestimonials.has(text)) {
+          await deleteDoc(doc(db, 'testimonials', d.id));
+        } else {
+          seenTestimonials.add(text);
+        }
+      }
+      
+      setError('Cleaned up duplicates successfully!');
+    } catch(err: any) { setError("Error: " + err.message); }
   }
 
   return (
@@ -178,9 +257,10 @@ const Dashboard = ({ setActiveTab }: any) => {
       <div>
         <h1 className="text-4xl font-display font-bold text-white tracking-tight">Dashboard Overview</h1>
         <p className="text-cream/60 mt-3 text-lg">Manage your site's content dynamically from here.</p>
+        {error && <div className="mt-4 p-4 bg-red-500/20 border border-red-500 rounded-xl text-red-100">{error}</div>}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div onClick={() => setActiveTab('projects')} className="bg-[#0B192C] border border-white/5 p-8 rounded-3xl hover:border-mint/30 cursor-pointer transition-all group">
           <Layers className="text-mint mb-4 w-8 h-8 group-hover:scale-110 transition-transform" />
           <h3 className="text-2xl font-bold text-white mb-2">Projects</h3>
@@ -196,6 +276,11 @@ const Dashboard = ({ setActiveTab }: any) => {
           <h3 className="text-2xl font-bold text-white mb-2">Site Images</h3>
           <p className="text-sm text-cream/60 mb-2">Change Founder, Global assets, and Background images.</p>
         </div>
+        <div onClick={() => setActiveTab('gallery')} className="bg-[#0B192C] border border-white/5 p-8 rounded-3xl hover:border-mint/30 cursor-pointer transition-all group">
+          <ImageIcon className="text-mint mb-4 w-8 h-8 group-hover:scale-110 transition-transform" />
+          <h3 className="text-2xl font-bold text-white mb-2">Image Gallery</h3>
+          <p className="text-sm text-cream/60 mb-2">Manage images for the infinite scrolling gallery.</p>
+        </div>
       </div>
 
       <div className="bg-mint/10 border border-mint/20 p-8 rounded-3xl max-w-3xl">
@@ -203,6 +288,14 @@ const Dashboard = ({ setActiveTab }: any) => {
         <p className="text-sm text-cream/80 mb-6">If the website is showing default projects that you cannot edit or delete in the admin panel, you can import them into the editable database below.</p>
         <button onClick={seedDB} className="bg-mint text-base font-bold px-6 py-3 rounded-xl hover:bg-white transition-colors">
           Import Old Hardcoded Data
+        </button>
+      </div>
+
+      <div className="bg-red-500/10 border border-red-500/20 p-8 rounded-3xl max-w-3xl mt-6">
+        <h2 className="text-xl font-bold text-white mb-4">Clean Up Duplicates</h2>
+        <p className="text-sm text-cream/80 mb-6">If the database contains duplicate entries (e.g. from pressing the import button multiple times), you can automatically remove the duplicates based on their title and text.</p>
+        <button onClick={cleanupDuplicates} className="bg-white text-red-500 text-base font-bold px-6 py-3 rounded-xl hover:bg-red-500 hover:text-white transition-colors border border-red-500">
+          Remove Duplicates
         </button>
       </div>
     </div>
@@ -215,6 +308,7 @@ const ProjectManager = () => {
   const [form, setForm] = useState({ title: '', type: '', link: '', description: '' });
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     return onSnapshot(collection(db, 'projects'), snap => setItems(snap.docs.map(d => ({id: d.id, ...d.data()}))));
@@ -223,26 +317,38 @@ const ProjectManager = () => {
   const save = async(e: any) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       let url = items.find(i=>i.id===editingId)?.image_url;
       if (file) {
-        const refObj = ref(storage, `projects/${Date.now()}.webp`);
-        await uploadBytes(refObj, await convertToWebP(file), { contentType: 'image/webp' });
-        url = await getDownloadURL(refObj);
+        url = await convertToWebPDataURL(file);
       }
-      if (editingId) {
+      if (editingId && editingId !== 'new') {
         await updateDoc(doc(db, 'projects', editingId), { ...form, image_url: url });
       } else {
         if(!url) throw new Error("Image needed");
         await addDoc(collection(db, 'projects'), { ...form, image_url: url, created_at: new Date().toISOString() });
       }
       setEditingId(null); setFile(null); setForm({title: '', type: '', link: '', description: ''});
-    } catch(err: any) { alert(err.message) }
+    } catch(err: any) { 
+      console.error(err);
+      setError(err.message || String(err));
+    }
     setLoading(false);
   }
 
-  const edit = (p: any) => { setEditingId(p.id); setForm({title: p.title, type: p.type, link: p.link, description: p.description}); setFile(null); }
-  const remove = async(id: string) => { if(confirm("Are you sure?")) await deleteDoc(doc(db, 'projects', id)); }
+  const edit = (p: any) => { setEditingId(p.id); setForm({title: p.title || '', type: p.type || '', link: p.link || '', description: p.description || ''}); setFile(null); setError(null); }
+  const remove = async(id: string) => { 
+    if(confirm("Are you sure?")) {
+      try {
+        setError(null);
+        await deleteDoc(doc(db, 'projects', id)); 
+      } catch(err: any) {
+        console.error(err);
+        setError(err.message || String(err));
+      }
+    }
+  }
 
   return (
     <div className="p-10 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -250,6 +356,7 @@ const ProjectManager = () => {
         <h1 className="text-4xl font-display font-bold text-white">Manage Projects</h1>
         {!editingId && <button onClick={()=>setEditingId('new')} className="bg-mint text-base font-bold px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-white"><Plus size={18}/> Add Project</button>}
       </div>
+      {error && <div className="p-4 bg-red-500/20 border border-red-500 rounded-xl text-red-100 mb-6">{error}</div>}
 
       {editingId && (
         <form onSubmit={save} className="bg-[#0B192C] p-8 rounded-3xl border border-mint/30 mb-10 space-y-6">
@@ -294,12 +401,14 @@ const ProjectManager = () => {
   )
 }
 
+
 const TestimonialManager = () => {
   const [items, setItems] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', role: '', text: '' });
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     return onSnapshot(collection(db, 'testimonials'), snap => setItems(snap.docs.map(d => ({id: d.id, ...d.data()}))));
@@ -308,26 +417,38 @@ const TestimonialManager = () => {
   const save = async(e: any) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       let url = items.find(i=>i.id===editingId)?.image_url;
       if (file) {
-        const refObj = ref(storage, `testimonials/${Date.now()}.webp`);
-        await uploadBytes(refObj, await convertToWebP(file), { contentType: 'image/webp' });
-        url = await getDownloadURL(refObj);
+        url = await convertToWebPDataURL(file);
       }
-      if (editingId) {
+      if (editingId && editingId !== 'new') {
         await updateDoc(doc(db, 'testimonials', editingId), { ...form, image_url: url });
       } else {
         if(!url) throw new Error("Image needed");
         await addDoc(collection(db, 'testimonials'), { ...form, image_url: url, created_at: new Date().toISOString() });
       }
       setEditingId(null); setFile(null); setForm({name: '', role: '', text: ''});
-    } catch(err: any) { alert(err.message) }
+    } catch(err: any) { 
+      console.error(err);
+      setError(err.message || String(err));
+    }
     setLoading(false);
   }
 
-  const edit = (t: any) => { setEditingId(t.id); setForm({name: t.name, role: t.role, text: t.text}); setFile(null); }
-  const remove = async(id: string) => { if(confirm("Are you sure?")) await deleteDoc(doc(db, 'testimonials', id)); }
+  const edit = (t: any) => { setEditingId(t.id); setForm({name: t.name || '', role: t.role || '', text: t.text || ''}); setFile(null); setError(null); }
+  const remove = async(id: string) => { 
+    if(confirm("Are you sure?")) {
+      try {
+        setError(null);
+        await deleteDoc(doc(db, 'testimonials', id)); 
+      } catch(err: any) {
+        console.error(err);
+        setError(err.message || String(err));
+      }
+    }
+  }
 
   return (
     <div className="p-10 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -335,6 +456,7 @@ const TestimonialManager = () => {
         <h1 className="text-4xl font-display font-bold text-white">Manage Testimonials</h1>
         {!editingId && <button onClick={()=>setEditingId('new')} className="bg-mint text-base font-bold px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-white"><Plus size={18}/> Add Client</button>}
       </div>
+      {error && <div className="p-4 bg-red-500/20 border border-red-500 rounded-xl text-red-100 mb-6">{error}</div>}
 
       {editingId && (
         <form onSubmit={save} className="bg-[#0B192C] p-8 rounded-3xl border border-mint/30 mb-10 space-y-6">
@@ -358,7 +480,7 @@ const TestimonialManager = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {items.map(t => (
           <div key={t.id} className="bg-[#0B192C] border border-white/5 rounded-3xl p-6 flex gap-6 hover:border-white/10 transition-colors">
-            <img src={t.image_url} alt={t.name} className="w-16 h-16 rounded-full object-cover shrink-0 bg-white/5" />
+            <img src={t.image_url || t.image} alt={t.name} className="w-16 h-16 rounded-full object-cover shrink-0 bg-white/5" />
             <div className="flex-1">
               <h3 className="text-lg font-bold text-white">{t.name}</h3>
               <p className="text-xs text-mint mb-3">{t.role}</p>
@@ -381,6 +503,7 @@ const SiteAssetsManager = () => {
   const [file, setFile] = useState<File | null>(null);
   const [assetKey, setAssetKey] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     return onSnapshot(collection(db, 'site_assets'), snap => setItems(snap.docs.map(d => ({id: d.id, ...d.data()}))));
@@ -390,32 +513,37 @@ const SiteAssetsManager = () => {
     e.preventDefault();
     if (!file || !assetKey) return;
     setLoading(true);
+    setError(null);
     try {
-      const refObj = ref(storage, `site_assets/${assetKey}_${Date.now()}.webp`);
-      await uploadBytes(refObj, await convertToWebP(file), { contentType: 'image/webp' });
-      const url = await getDownloadURL(refObj);
+      const url = await convertToWebPDataURL(file);
       const existing = items.find(i => i.key === assetKey);
       if (existing) await deleteDoc(doc(db, 'site_assets', existing.id));
       await addDoc(collection(db, 'site_assets'), { key: assetKey, image_url: url });
       setFile(null); setAssetKey("");
-    } catch(err: any) { alert(err) }
+    } catch(err: any) {
+      console.error(err);
+      setError(err.message || String(err));
+    }
     setLoading(false);
   }
 
-  const keys = ["founder_image", "why_choose_us_1"];
+  const keys = ["founder_image", "why_choose_us_1", "trust_avatar_1", "trust_avatar_2", "trust_avatar_3", "logo_image", "hero_image"];
 
   return (
     <div className="p-10 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
       <h1 className="text-4xl font-display font-bold text-white mb-4">Site Images</h1>
       <p className="text-cream/60 text-lg mb-10">Manage distinct images shown throughout the website.</p>
+      {error && <div className="p-4 bg-red-500/20 border border-red-500 rounded-xl text-red-100 mb-6">{error}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         <form onSubmit={save} className="bg-[#0B192C] p-8 rounded-3xl border border-white/5 space-y-6">
           <h2 className="text-2xl font-bold text-white mb-6">Upload Image</h2>
           <div>
-            <label className="text-xs uppercase tracking-wider text-cream/70 font-medium mb-2 block">Placement Key</label>
-            <input required list="asset_keys" value={assetKey} onChange={e=>setAssetKey(e.target.value)} placeholder="e.g. founder_image" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:border-mint focus:outline-none" />
-            <datalist id="asset_keys">{keys.map(k=><option key={k} value={k}/>)}</datalist>
+            <label className="text-xs uppercase tracking-wider text-cream/70 font-medium mb-2 block">Select Placement Key</label>
+            <select required value={assetKey} onChange={e=>setAssetKey(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:border-mint focus:outline-none text-white appearance-none">
+              <option value="" disabled>Select where this image should appear</option>
+              {keys.map(k=><option key={k} value={k}>{k.replace(/_/g, ' ').toUpperCase()}</option>)}
+            </select>
           </div>
           <div className="p-6 border border-dashed border-white/20 rounded-xl flex items-center justify-center bg-white/5">
             <input required type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm" />

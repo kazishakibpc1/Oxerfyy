@@ -37,19 +37,16 @@ export function ImageMarquee() {
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'gallery'), (snap) => {
-      if (!snap.empty) {
-        const urls = snap.docs.map(doc => doc.data().image_url as string);
-        if (urls.length >= 3) {
-          const partSize = Math.ceil(urls.length / 3);
-          setRow1(urls.slice(0, partSize) || defaultRow1);
-          setRow2(urls.slice(partSize, partSize * 2) || defaultRow2);
-          setRow3(urls.slice(partSize * 2) || defaultRow3);
-        } else {
-          // If less than 3 images, just duplicate them or use defaults
-          setRow1(urls);
-          setRow2(urls);
-          setRow3(urls);
-        }
+      const urls = snap.docs.map(doc => doc.data().image_url as string);
+      if (urls.length >= 3) {
+        const partSize = Math.ceil(urls.length / 3);
+        setRow1(urls.slice(0, partSize) || defaultRow1);
+        setRow2(urls.slice(partSize, partSize * 2) || defaultRow2);
+        setRow3(urls.slice(partSize * 2) || defaultRow3);
+      } else {
+        setRow1(urls);
+        setRow2(urls);
+        setRow3(urls);
       }
     });
 
