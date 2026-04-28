@@ -102,15 +102,15 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-[#06101c] text-cream flex overflow-hidden font-sans">
-      {/* Sidebar */}
-      <div className="w-72 border-r border-white/10 flex flex-col pt-10 pb-6 px-6 bg-[#0B192C] shrink-0">
+    <div className="min-h-screen bg-[#06101c] text-cream flex flex-col md:flex-row overflow-hidden font-sans">
+      {/* Sidebar - Simplified for mobile for now */}
+      <div className="w-full md:w-72 border-r border-white/10 flex flex-col pt-6 md:pt-10 pb-6 px-4 md:px-6 bg-[#0B192C] shrink-0">
         <h2 className="text-2xl font-display font-bold tracking-widest text-white mb-2">
           O<span className="text-mint">X</span>ERFY
         </h2>
-        <span className="text-[10px] uppercase tracking-widest text-mint px-1 mb-10 block font-bold">Admin Workspace</span>
+        <span className="text-[10px] uppercase tracking-widest text-mint px-1 mb-6 md:mb-10 block font-bold">Admin Workspace</span>
         
-        <nav className="flex flex-col gap-2 flex-1">
+        <nav className="flex flex-row md:flex-col gap-1 md:gap-2 overflow-x-auto pb-2 md:pb-0 flex-1">
           {[
             { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
             { id: 'projects', icon: Layers, label: 'Projects' },
@@ -119,13 +119,13 @@ export default function Admin() {
             { id: 'gallery', icon: ImageIcon, label: 'Image Gallery' },
             { id: 'settings', icon: Settings, label: 'Settings' },
           ].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all ${activeTab === tab.id ? 'bg-mint text-base shadow-lg shadow-mint/20' : 'hover:bg-white/5 text-cream/70 hover:text-white'}`}>
-              <tab.icon size={18} /> {tab.label}
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 md:gap-4 px-3 md:px-4 py-2 md:py-3.5 rounded-xl text-xs md:text-sm font-semibold transition-all shrink-0 ${activeTab === tab.id ? 'bg-mint text-base shadow-lg shadow-mint/20' : 'hover:bg-white/5 text-cream/70 hover:text-white'}`}>
+              <tab.icon size={16} md:size={18} /> {tab.label}
             </button>
           ))}
         </nav>
 
-        <div className="mt-8 pt-6">
+        <div className="hidden md:block mt-8 pt-6">
           <div className="px-4 mb-4">
             <p className="text-xs text-cream/40 truncate w-full" title={session.email || ""}>{session.email}</p>
           </div>
@@ -135,7 +135,7 @@ export default function Admin() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto w-full h-screen relative">
+      <div className="flex-1 overflow-y-auto w-full h-screen relative p-4 md:p-10">
         {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} />}
         {activeTab === 'projects' && <ProjectManager />}
         {activeTab === 'testimonials' && <TestimonialManager />}
@@ -439,7 +439,7 @@ const TestimonialManager = () => {
 
   const edit = (t: any) => { setEditingId(t.id); setForm({name: t.name || '', role: t.role || '', text: t.text || ''}); setFile(null); setError(null); }
   const remove = async(id: string) => { 
-    if(confirm("Are you sure?")) {
+    if(confirm("Are you sure you want to delete this testimonial? This action cannot be undone.")) {
       try {
         setError(null);
         await deleteDoc(doc(db, 'testimonials', id)); 
