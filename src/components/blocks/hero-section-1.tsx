@@ -10,12 +10,10 @@ const transitionVariants = {
     item: {
         hidden: {
             opacity: 0,
-            filter: 'blur(12px)',
             y: 12,
         },
         visible: {
             opacity: 1,
-            filter: 'blur(0px)',
             y: 0,
             transition: {
                 type: 'spring',
@@ -28,10 +26,8 @@ const transitionVariants = {
 
 export function HeroSection() {
     return (
-        <>
-            <main className="overflow-hidden">
-                <section className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-black">
-                    {/* Parallel Lines Pattern */}
+        <section className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-black pt-20">
+            {/* Parallel Lines Pattern */}
                     <div 
                         className="absolute inset-0 z-0 opacity-20" 
                         style={{ 
@@ -45,7 +41,7 @@ export function HeroSection() {
                         animationDuration={2}
                     />
                     
-                    <div className="relative z-10 w-full pt-24 md:pt-36">
+                    <div className="relative z-10 w-full pt-12 md:pt-16 lg:pt-20">
                         <div className="mx-auto max-w-7xl px-6">
                             <div className="text-center sm:mx-auto lg:mr-auto lg:mt-0">
                                 <AnimatedGroup variants={transitionVariants}>
@@ -68,7 +64,7 @@ export function HeroSection() {
                                     </a>
                         
                                     <h1
-                                        className="mt-8 max-w-4xl mx-auto text-balance text-6xl md:text-7xl lg:mt-16 xl:text-[5.25rem] font-display font-bold leading-[0.9] text-cream tracking-[-0.05em]">
+                                        className="mt-8 max-w-4xl mx-auto text-balance text-5xl sm:text-6xl md:text-7xl lg:mt-16 xl:text-[5.25rem] font-display font-bold leading-tight md:leading-[1.1] text-cream tracking-[-0.05em]">
                                         We make businesses<br />
                                         <span className="text-mint block mt-2">
                                           <Typewriter phrases={["visible.", "digital.", "unstoppable."]} delay={3000} />
@@ -81,6 +77,7 @@ export function HeroSection() {
                                 </AnimatedGroup>
 
                                 <AnimatedGroup
+                                    itemClassName="w-full sm:w-auto flex justify-center"
                                     variants={{
                                         container: {
                                             visible: {
@@ -92,15 +89,16 @@ export function HeroSection() {
                                         },
                                         ...transitionVariants,
                                     }}
-                                    className="mt-12 flex flex-col items-center justify-center gap-4 md:flex-row">
+                                    itemClassName="w-full sm:w-auto flex justify-center"
+                                    className="mt-8 sm:mt-12 flex items-center justify-center gap-4 flex-col sm:flex-row w-full px-8 sm:px-0">
                                     <div
                                         key={1}
-                                        className="bg-white/10 rounded-full border border-white/10 p-0.5">
+                                        className="w-full sm:w-auto max-w-[280px] sm:max-w-none bg-white/10 rounded-full border border-white/10 p-0.5">
                                         <Button
                                             asChild
                                             size="lg"
-                                            className="rounded-full px-8 py-6 text-lg font-bold bg-mint text-base hover:bg-mint/90 group cursor-none">
-                                            <a href="#contact">
+                                            className="w-full rounded-full px-6 py-6 text-base md:text-lg font-bold bg-mint text-black hover:bg-[#00969e] group cursor-none">
+                                            <a href="#contact" className="flex items-center justify-center">
                                                 <span className="text-nowrap flex items-center gap-2">
                                                     Start a Project
                                                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -113,8 +111,8 @@ export function HeroSection() {
                                         asChild
                                         size="lg"
                                         variant="outline"
-                                        className="h-14 rounded-full px-8 py-6 text-lg font-bold border-mint text-mint hover:bg-mint/10 hover:text-mint cursor-none bg-transparent">
-                                        <a href="#work">
+                                        className="w-full sm:w-auto max-w-[280px] sm:max-w-none h-[52px] md:h-14 rounded-full px-6 py-6 text-base md:text-lg font-bold border border-white/20 !text-white hover:bg-white/10 hover:!text-white cursor-none bg-transparent transition-colors">
+                                        <a href="#work" className="flex items-center justify-center">
                                             <span className="text-nowrap">View Our Work</span>
                                         </a>
                                     </Button>
@@ -134,26 +132,32 @@ export function HeroSection() {
                                 },
                                 ...transitionVariants,
                             }}>
-                            <div className="relative -mr-56 mt-8 overflow-hidden px-2 sm:mr-0 sm:mt-12 md:mt-20">
+                            <div className="relative mt-8 sm:mt-12 md:mt-16 px-4 sm:px-6 md:px-8 mx-auto w-full flex justify-center pb-10 md:pb-20">
+                                {/* Fully black fade at the bottom over the monitor */}
                                 <div
                                     aria-hidden
-                                    className="bg-gradient-to-b to-[var(--color-base)] absolute inset-0 z-10 from-transparent from-35%"
+                                    className="absolute bottom-0 left-0 right-0 h-1/3 md:h-2/5 bg-gradient-to-t from-black via-black/90 to-transparent z-20 pointer-events-none"
                                 />
-                                <div className="inset-shadow-2xs ring-[var(--color-base)] dark:inset-shadow-white/20 bg-[var(--color-base)] relative mx-auto max-w-[1400px] w-[95vw] overflow-hidden rounded-2xl border border-white/10 p-4 shadow-lg shadow-black/50 ring-1">
-                                    <img
-                                        className="bg-[var(--color-base)] w-full h-auto relative rounded-2xl"
-                                        src="https://image2url.com/r2/default/images/1775748582845-aefcc85f-2bce-4b22-a224-ab0c5cb84f45.png"
-                                        alt="app screen"
-                                        width="2700"
-                                        height="1440"
-                                    />
+                                {/* Black monitor frame (no glass texture) */}
+                                <div className="relative mx-auto max-w-[1200px] w-full rounded-t-[1rem] sm:rounded-t-[2rem] border-t-[4px] border-l-[4px] border-r-[4px] sm:border-t-[16px] sm:border-l-[16px] sm:border-r-[16px] border-[#0F0F0F] bg-[#0F0F0F] shadow-2xl ring-1 ring-white/5">
+                                    <div className="relative rounded-t-sm sm:rounded-t-xl overflow-hidden bg-black">
+                                        <img
+                                            className="w-full h-auto relative"
+                                            src="https://image2url.com/r2/default/images/1775748582845-aefcc85f-2bce-4b22-a224-ab0c5cb84f45.png"
+                                            alt="app screen"
+                                            width="2700"
+                                            height="1440"
+                                        />
+                                        <div
+                                            aria-hidden
+                                            className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#0F0F0F] to-transparent z-10 pointer-events-none sm:hidden"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </AnimatedGroup>
                     </div>
                 </section>
-            </main>
-        </>
     )
 }
 
@@ -233,23 +237,23 @@ const HeroHeader = () => {
                                     variant="outline"
                                     size="sm"
                                     className={cn(isScrolled && 'lg:hidden', 'border-white/10 text-cream hover:bg-white/10 hover:text-cream')}>
-                                    <a href="#">
-                                        <span>Login</span>
+                                    <a href="/admin">
+                                        <span>Admin Login</span>
                                     </a>
                                 </Button>
                                 <Button
                                     asChild
                                     size="sm"
-                                    className={cn(isScrolled && 'lg:hidden', 'bg-mint text-base hover:bg-mint/90')}>
-                                    <a href="#">
-                                        <span>Sign Up</span>
+                                    className={cn(isScrolled && 'lg:hidden', 'bg-mint text-black font-bold hover:bg-[#00969e]')}>
+                                    <a href="#contact">
+                                        <span>Contact Us</span>
                                     </a>
                                 </Button>
                                 <Button
                                     asChild
                                     size="sm"
-                                    className={cn(isScrolled ? 'lg:inline-flex' : 'hidden', 'bg-mint text-base hover:bg-mint/90')}>
-                                    <a href="#">
+                                    className={cn(isScrolled ? 'lg:inline-flex' : 'hidden', 'bg-mint text-black font-bold hover:bg-[#00969e]')}>
+                                    <a href="#contact">
                                         <span>Get Started</span>
                                     </a>
                                 </Button>

@@ -1,59 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { auth, db, storage } from "../lib/firebase";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, User } from "firebase/auth";
-import { collection, addDoc, deleteDoc, doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
+import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from "firebase/auth";
+import { collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { Image as ImageIcon, Layers, MessageSquare, Trash2, UploadCloud, Loader2, Settings } from "lucide-react";
+import { Image as ImageIcon, Layers, MessageSquare, Trash2, UploadCloud, Loader2, Settings, Edit3, X, Check, Search, Plus, LayoutDashboard } from "lucide-react";
+import { defaultProjects } from "../components/Portfolio";
+import { defaultTestimonials } from "../components/Testimonials";
 
-// --- CRITICAL FIRESTORE ERROR HANDLING SPEC ---
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: any[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
-// --- END ERROR HANDLING ---
-
-// Utility function to convert images to webp before uploading
 export const convertToWebP = (file: File): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -61,558 +14,447 @@ export const convertToWebP = (file: File): Promise<Blob> => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
+        canvas.width = img.width; canvas.height = img.height;
         const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Failed to get canvas context'));
-          return;
-        }
+        if (!ctx) return reject(new Error('Failed context'));
         ctx.drawImage(img, 0, 0);
-        canvas.toBlob((blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error('Canvas toBlob failed'));
-        }, 'image/webp', 0.85); // 85% quality
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Failed blob')), 'image/webp', 0.85);
       };
-      img.onerror = () => reject(new Error('Failed to load image'));
+      img.onerror = () => reject(new Error('Image failed'));
       img.src = e.target?.result as string;
     };
-    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.onerror = () => reject(new Error('Read failed'));
     reader.readAsDataURL(file);
   });
 };
 
 export default function Admin() {
   const [session, setSession] = useState<User | null>(null);
-  const [email, setEmail] = useState("oxerfy@gmail.com");
-  const [password, setPassword] = useState("#0000oxerfy#0000");
-  const [activeTab, setActiveTab] = useState("projects");
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    return onAuthStateChanged(auth, (user) => {
       setSession(user);
       setLoading(false);
     });
-    return () => unsubscribe();
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async () => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      setLoading(true);
+      await signInWithPopup(auth, new GoogleAuthProvider());
     } catch (err: any) {
-      // If the user doesn't exist yet, we automatically create it for convenience
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-        try {
-          await createUserWithEmailAndPassword(auth, email, password);
-        } catch (registerErr: any) {
-          alert("Login Failed: " + err.message + "\nRegister Fallback Failed: " + registerErr.message);
-        }
-      } else {
-        alert("Login Failed: " + err.message);
-      }
+      alert("Login Failed: " + err.message);
+      setLoading(false);
     }
   };
 
-  if (loading) {
-    return <div className="min-h-screen bg-base flex flex-col items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-mint" /></div>;
-  }
+  if (loading) return <div className="min-h-screen bg-base flex justify-center items-center"><Loader2 className="w-8 h-8 animate-spin text-mint" /></div>;
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-base text-cream flex flex-col items-center justify-center p-6 bg-[#0B192C]">
-        <div className="glass-card p-10 max-w-md w-full border border-white/10 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-12 bg-mint/20 blur-[80px] pointer-events-none rounded-full" />
-          <h1 className="text-3xl font-display font-bold mb-2">Admin Panel</h1>
-          <p className="text-sm text-cream/50 font-light mb-8">Sign in with Firebase Auth</p>
-          
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wider text-cream/70 font-medium">Admin Email</label>
-              <input 
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-mint transition-colors"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wider text-cream/70 font-medium">Password</label>
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-mint transition-colors"
-                required
-              />
-            </div>
-            <button type="submit" className="w-full bg-mint text-base font-bold py-3 rounded-xl hover:bg-white transition-colors">
-              Access Dashboard
-            </button>
-          </form>
+      <div className="min-h-screen bg-[#0B192C] flex items-center justify-center p-6">
+        <div className="bg-[#06101c] p-10 max-w-md w-full border border-white/10 text-center relative overflow-hidden rounded-3xl shadow-2xl">
+          <div className="absolute top-0 right-0 p-16 bg-mint/20 blur-[100px] pointer-events-none rounded-full" />
+          <h1 className="text-4xl font-display font-bold mb-3 text-white tracking-tight">Access Panel</h1>
+          <p className="text-sm text-cream/50 mb-10">Secure workspace login required</p>
+          <button onClick={handleLogin} className="w-full bg-mint text-base font-bold py-4 rounded-xl hover:bg-white transition-all flex items-center justify-center gap-2">
+            Sign in with Google
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-base text-cream flex overflow-hidden">
+    <div className="min-h-screen bg-[#06101c] text-cream flex overflow-hidden font-sans">
       {/* Sidebar */}
-      <div className="w-64 border-r border-white/10 flex flex-col py-10 px-4 bg-[#0B192C] flex-shrink-0">
-        <h2 className="text-xl px-4 font-display font-bold tracking-widest text-white mb-10">O<span className="text-mint">X</span>ERFY ADMIN</h2>
+      <div className="w-72 border-r border-white/10 flex flex-col pt-10 pb-6 px-6 bg-[#0B192C] shrink-0">
+        <h2 className="text-2xl font-display font-bold tracking-widest text-white mb-2">
+          O<span className="text-mint">X</span>ERFY
+        </h2>
+        <span className="text-[10px] uppercase tracking-widest text-mint px-1 mb-10 block font-bold">Admin Workspace</span>
         
-        <nav className="flex flex-col w-full gap-2 overflow-y-auto">
-          <button 
-            onClick={() => setActiveTab('projects')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'projects' ? 'bg-mint text-base' : 'hover:bg-white/5 text-cream/70'}`}
-          >
-            <Layers size={18} /> Projects
-          </button>
-          <button 
-            onClick={() => setActiveTab('testimonials')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'testimonials' ? 'bg-mint text-base' : 'hover:bg-white/5 text-cream/70'}`}
-          >
-            <MessageSquare size={18} /> Testimonials
-          </button>
-          <button 
-            onClick={() => setActiveTab('gallery')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'gallery' ? 'bg-mint text-base' : 'hover:bg-white/5 text-cream/70'}`}
-          >
-            <ImageIcon size={18} /> Gallery
-          </button>
-          <button 
-            onClick={() => setActiveTab('assets')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'assets' ? 'bg-mint text-base' : 'hover:bg-white/5 text-cream/70'}`}
-          >
-            <ImageIcon size={18} /> Site Assets
-          </button>
-          <button 
-            onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'settings' ? 'bg-mint text-base' : 'hover:bg-white/5 text-cream/70'}`}
-          >
-            <Settings size={18} /> Settings
-          </button>
+        <nav className="flex flex-col gap-2 flex-1">
+          {[
+            { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+            { id: 'projects', icon: Layers, label: 'Projects' },
+            { id: 'testimonials', icon: MessageSquare, label: 'Testimonials' },
+            { id: 'assets', icon: ImageIcon, label: 'Images & Assets' },
+            { id: 'settings', icon: Settings, label: 'Settings' },
+          ].map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all ${activeTab === tab.id ? 'bg-mint text-base shadow-lg shadow-mint/20' : 'hover:bg-white/5 text-cream/70 hover:text-white'}`}>
+              <tab.icon size={18} /> {tab.label}
+            </button>
+          ))}
         </nav>
 
-        <div className="mt-auto pt-6 w-full">
-          <p className="text-xs text-center text-cream/40 mb-4 truncate w-full px-2" title={session.email || ""}>Logged in as: {session.email}</p>
-          <button onClick={() => signOut(auth)} className="w-full py-3 text-sm font-medium text-cream/50 hover:text-white transition-colors rounded-lg hover:bg-white/5 border border-white/5">
-            Log Out
+        <div className="mt-8 pt-6">
+          <div className="px-4 mb-4">
+            <p className="text-xs text-cream/40 truncate w-full" title={session.email || ""}>{session.email}</p>
+          </div>
+          <button onClick={() => signOut(auth)} className="w-full py-3 text-sm font-bold text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors border border-red-500/20">
+            Sign Out
           </button>
         </div>
       </div>
 
-      {/* Main Content Pane */}
-      <div className="flex-1 p-10 bg-[#06101c] overflow-y-auto h-screen">
+      <div className="flex-1 overflow-y-auto w-full h-screen relative">
+        {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} />}
         {activeTab === 'projects' && <ProjectManager />}
         {activeTab === 'testimonials' && <TestimonialManager />}
-        {activeTab === 'gallery' && <GalleryManager />}
         {activeTab === 'assets' && <SiteAssetsManager />}
+        {activeTab === 'gallery' && <GalleryManager />}
         {activeTab === 'settings' && <SettingsManager />}
       </div>
     </div>
   );
 }
 
-// --- SUB-COMPONENTS FOR EACH TAB ---
-
-const SettingsManager = () => {
-  const [founderLinkedin, setFounderLinkedin] = useState("");
-  const [founderWebsite, setFounderWebsite] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const GalleryManager = () => {
+  const [items, setItems] = useState<any[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.founder_linkedin) setFounderLinkedin(data.founder_linkedin);
-        if (data.founder_website) setFounderWebsite(data.founder_website);
-      }
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'settings/global'));
-    return () => unsub();
+    return onSnapshot(collection(db, 'gallery'), snap => setItems(snap.docs.map(d => ({id: d.id, ...d.data()}))));
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const save = async(e: any) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    if (!file) return;
+    setLoading(true);
     try {
-      await setDoc(doc(db, 'settings', 'global'), {
-        founder_linkedin: founderLinkedin,
-        founder_website: founderWebsite,
-        updated_at: new Date().toISOString()
-      }, { merge: true });
-      alert('Settings updated successfully!');
-    } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, 'settings/global');
-    }
-    setIsSubmitting(false);
-  };
+      const refObj = ref(storage, `gallery/${Date.now()}.webp`);
+      await uploadBytes(refObj, await convertToWebP(file), { contentType: 'image/webp' });
+      const url = await getDownloadURL(refObj);
+      await addDoc(collection(db, 'gallery'), { image_url: url });
+      setFile(null);
+    } catch(err: any) { alert(err) }
+    setLoading(false);
+  }
+
+  const remove = async (id: string) => {
+    if(confirm('Delete?')) await deleteDoc(doc(db, 'gallery', id));
+  }
 
   return (
-    <div>
-      <h1 className="text-3xl font-display font-bold text-white mb-8">Global Settings</h1>
+    <div className="p-10 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <h1 className="text-4xl font-display font-bold text-white mb-10">Image Gallery</h1>
       
-      <form onSubmit={handleSubmit} className="mb-10 p-6 glass-card border border-white/5 space-y-4 max-w-xl">
-        <h3 className="text-lg font-bold mb-4">Founder Links</h3>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs uppercase tracking-wider text-cream/70 font-medium mb-2 block">LinkedIn URL</label>
-            <input 
-              type="text" 
-              placeholder="https://linkedin.com/in/..." 
-              value={founderLinkedin} 
-              onChange={e=>setFounderLinkedin(e.target.value)} 
-              className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:outline-none focus:border-mint" 
-            />
-          </div>
-          <div>
-            <label className="text-xs uppercase tracking-wider text-cream/70 font-medium mb-2 block">Personal Website URL</label>
-            <input 
-              type="text" 
-              placeholder="https://..." 
-              value={founderWebsite} 
-              onChange={e=>setFounderWebsite(e.target.value)} 
-              className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:outline-none focus:border-mint" 
-            />
-          </div>
-        </div>
-        
-        <button type="submit" disabled={isSubmitting} className="w-full mt-4 bg-mint text-base font-bold py-3 rounded-lg flex justify-center items-center gap-2 hover:bg-white transition-colors">
-          {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Settings size={18} />} Save Settings
-        </button>
+      <form onSubmit={save} className="bg-[#0B192C] p-8 rounded-3xl border border-white/5 flex flex-col md:flex-row gap-6 items-center mb-10">
+        <input required type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="w-full text-sm bg-white/5 border border-white/10 rounded-xl p-4 cursor-pointer" />
+        <button type="submit" disabled={loading} className="w-full md:w-auto px-8 py-4 bg-mint text-base font-bold rounded-xl whitespace-nowrap flex items-center justify-center gap-2 hover:bg-white">{loading ? <Loader2 className="animate-spin" /> : "Upload Image"}</button>
       </form>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+        {items.map(g => (
+          <div key={g.id} className="relative group rounded-2xl overflow-hidden aspect-[4/5] md:aspect-square border border-white/10">
+            <img src={g.image_url} alt="Gallery" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <button onClick={() => remove(g.id)} className="bg-red-500 text-white p-3 rounded-full hover:scale-110 transition-transform"><Trash2 size={16} /></button>
+            </div>
+          </div>
+        ))}
+        {items.length === 0 && <div className="col-span-full py-10 text-center text-cream/40">No gallery images uploaded yet.</div>}
+      </div>
     </div>
-  );
-};
+  )
+}
+
+const Dashboard = ({ setActiveTab }: any) => {
+  const seedDB = async () => {
+    if(!confirm("Important: This will add default projects and testimonials to the live database if they don't exist. Proceed?")) return;
+    try {
+      for(const p of defaultProjects) await addDoc(collection(db, 'projects'), {...p, image_url: p.image});
+      for(const t of defaultTestimonials) await addDoc(collection(db, 'testimonials'), {...t, image_url: t.image});
+      alert('Seeded test data successfully!');
+    } catch(err: any) { alert("Error: " + err.message); }
+  }
+
+  return (
+    <div className="p-10 max-w-7xl mx-auto w-full space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div>
+        <h1 className="text-4xl font-display font-bold text-white tracking-tight">Dashboard Overview</h1>
+        <p className="text-cream/60 mt-3 text-lg">Manage your site's content dynamically from here.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div onClick={() => setActiveTab('projects')} className="bg-[#0B192C] border border-white/5 p-8 rounded-3xl hover:border-mint/30 cursor-pointer transition-all group">
+          <Layers className="text-mint mb-4 w-8 h-8 group-hover:scale-110 transition-transform" />
+          <h3 className="text-2xl font-bold text-white mb-2">Projects</h3>
+          <p className="text-sm text-cream/60 mb-2">Create, edit, or remove portfolio projects.</p>
+        </div>
+        <div onClick={() => setActiveTab('testimonials')} className="bg-[#0B192C] border border-white/5 p-8 rounded-3xl hover:border-mint/30 cursor-pointer transition-all group">
+          <MessageSquare className="text-mint mb-4 w-8 h-8 group-hover:scale-110 transition-transform" />
+          <h3 className="text-2xl font-bold text-white mb-2">Testimonials</h3>
+          <p className="text-sm text-cream/60 mb-2">Manage client reviews shown on the homepage.</p>
+        </div>
+        <div onClick={() => setActiveTab('assets')} className="bg-[#0B192C] border border-white/5 p-8 rounded-3xl hover:border-mint/30 cursor-pointer transition-all group">
+          <ImageIcon className="text-mint mb-4 w-8 h-8 group-hover:scale-110 transition-transform" />
+          <h3 className="text-2xl font-bold text-white mb-2">Site Images</h3>
+          <p className="text-sm text-cream/60 mb-2">Change Founder, Global assets, and Background images.</p>
+        </div>
+      </div>
+
+      <div className="bg-mint/10 border border-mint/20 p-8 rounded-3xl max-w-3xl">
+        <h2 className="text-xl font-bold text-white mb-4">Migrate Old Data</h2>
+        <p className="text-sm text-cream/80 mb-6">If the website is showing default projects that you cannot edit or delete in the admin panel, you can import them into the editable database below.</p>
+        <button onClick={seedDB} className="bg-mint text-base font-bold px-6 py-3 rounded-xl hover:bg-white transition-colors">
+          Import Old Hardcoded Data
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const ProjectManager = () => {
+  const [items, setItems] = useState<any[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({ title: '', type: '', link: '', description: '' });
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    return onSnapshot(collection(db, 'projects'), snap => setItems(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+  }, []);
+
+  const save = async(e: any) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      let url = items.find(i=>i.id===editingId)?.image_url;
+      if (file) {
+        const refObj = ref(storage, `projects/${Date.now()}.webp`);
+        await uploadBytes(refObj, await convertToWebP(file), { contentType: 'image/webp' });
+        url = await getDownloadURL(refObj);
+      }
+      if (editingId) {
+        await updateDoc(doc(db, 'projects', editingId), { ...form, image_url: url });
+      } else {
+        if(!url) throw new Error("Image needed");
+        await addDoc(collection(db, 'projects'), { ...form, image_url: url, created_at: new Date().toISOString() });
+      }
+      setEditingId(null); setFile(null); setForm({title: '', type: '', link: '', description: ''});
+    } catch(err: any) { alert(err.message) }
+    setLoading(false);
+  }
+
+  const edit = (p: any) => { setEditingId(p.id); setForm({title: p.title, type: p.type, link: p.link, description: p.description}); setFile(null); }
+  const remove = async(id: string) => { if(confirm("Are you sure?")) await deleteDoc(doc(db, 'projects', id)); }
+
+  return (
+    <div className="p-10 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex justify-between items-center mb-10">
+        <h1 className="text-4xl font-display font-bold text-white">Manage Projects</h1>
+        {!editingId && <button onClick={()=>setEditingId('new')} className="bg-mint text-base font-bold px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-white"><Plus size={18}/> Add Project</button>}
+      </div>
+
+      {editingId && (
+        <form onSubmit={save} className="bg-[#0B192C] p-8 rounded-3xl border border-mint/30 mb-10 space-y-6">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-2xl font-bold text-white">{editingId === 'new' ? 'Create New Project' : 'Edit Project'}</h2>
+            <button type="button" onClick={()=>setEditingId(null)} className="text-cream/50 hover:text-white"><X size={24}/></button>
+          </div>
+          <div className="grid grid-cols-2 gap-6">
+            <div><label className="text-xs uppercase tracking-wider text-cream/70 font-medium mb-2 block">Title</label><input required value={form.title} onChange={e=>setForm({...form, title: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:border-mint focus:outline-none" /></div>
+            <div><label className="text-xs uppercase tracking-wider text-cream/70 font-medium mb-2 block">Category (e.g. Meta Ads)</label><input required value={form.type} onChange={e=>setForm({...form, type: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:border-mint focus:outline-none" /></div>
+            <div className="col-span-2"><label className="text-xs uppercase tracking-wider text-cream/70 font-medium mb-2 block">Project Link</label><input value={form.link} onChange={e=>setForm({...form, link: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:border-mint focus:outline-none" /></div>
+            <div className="col-span-2"><label className="text-xs uppercase tracking-wider text-cream/70 font-medium mb-2 block">Description</label><textarea required value={form.description} rows={3} onChange={e=>setForm({...form, description: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:border-mint focus:outline-none resize-none" /></div>
+            <div className="col-span-2 p-6 border border-dashed border-white/20 rounded-xl flex items-center justify-center bg-white/5"><input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm cursor-pointer" /></div>
+          </div>
+          <div className="flex justify-end gap-4 mt-6">
+            <button type="button" onClick={()=>setEditingId(null)} className="px-6 py-3 font-bold rounded-xl text-cream/70 hover:bg-white/10">Cancel</button>
+            <button type="submit" disabled={loading} className="bg-mint text-base font-bold px-8 py-3 rounded-xl flex items-center gap-2 hover:bg-white">{loading ? <Loader2 className="animate-spin" size={18}/> : <Check size={18}/>} Save Project</button>
+          </div>
+        </form>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {items.map(p => (
+          <div key={p.id} className="bg-[#0B192C] border border-white/5 rounded-3xl overflow-hidden group">
+            <div className="h-48 w-full bg-black/50 relative">
+              <img src={p.image_url} alt={p.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute top-4 right-4 flex gap-2">
+                <button onClick={()=>edit(p)} className="p-2 bg-black/60 rounded-lg text-white hover:bg-mint hover:text-base backdrop-blur-md transition-colors"><Edit3 size={16}/></button>
+                <button onClick={()=>remove(p.id)} className="p-2 bg-black/60 rounded-lg text-red-400 hover:bg-red-500 hover:text-white backdrop-blur-md transition-colors"><Trash2 size={16}/></button>
+              </div>
+            </div>
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-white">{p.title}</h3>
+              <p className="text-sm text-mint mt-1 mb-4">{p.type}</p>
+              <p className="text-sm text-cream/60 line-clamp-2">{p.description}</p>
+            </div>
+          </div>
+        ))}
+        {items.length === 0 && <div className="col-span-full py-20 text-center text-cream/40 border border-dashed border-white/10 rounded-3xl">No projects found. Add one or import defaults from Dashboard.</div>}
+      </div>
+    </div>
+  )
+}
+
+const TestimonialManager = () => {
+  const [items, setItems] = useState<any[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: '', role: '', text: '' });
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    return onSnapshot(collection(db, 'testimonials'), snap => setItems(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+  }, []);
+
+  const save = async(e: any) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      let url = items.find(i=>i.id===editingId)?.image_url;
+      if (file) {
+        const refObj = ref(storage, `testimonials/${Date.now()}.webp`);
+        await uploadBytes(refObj, await convertToWebP(file), { contentType: 'image/webp' });
+        url = await getDownloadURL(refObj);
+      }
+      if (editingId) {
+        await updateDoc(doc(db, 'testimonials', editingId), { ...form, image_url: url });
+      } else {
+        if(!url) throw new Error("Image needed");
+        await addDoc(collection(db, 'testimonials'), { ...form, image_url: url, created_at: new Date().toISOString() });
+      }
+      setEditingId(null); setFile(null); setForm({name: '', role: '', text: ''});
+    } catch(err: any) { alert(err.message) }
+    setLoading(false);
+  }
+
+  const edit = (t: any) => { setEditingId(t.id); setForm({name: t.name, role: t.role, text: t.text}); setFile(null); }
+  const remove = async(id: string) => { if(confirm("Are you sure?")) await deleteDoc(doc(db, 'testimonials', id)); }
+
+  return (
+    <div className="p-10 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex justify-between items-center mb-10">
+        <h1 className="text-4xl font-display font-bold text-white">Manage Testimonials</h1>
+        {!editingId && <button onClick={()=>setEditingId('new')} className="bg-mint text-base font-bold px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-white"><Plus size={18}/> Add Client</button>}
+      </div>
+
+      {editingId && (
+        <form onSubmit={save} className="bg-[#0B192C] p-8 rounded-3xl border border-mint/30 mb-10 space-y-6">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-2xl font-bold text-white">{editingId === 'new' ? 'New Testimonial' : 'Edit Testimonial'}</h2>
+            <button type="button" onClick={()=>setEditingId(null)} className="text-cream/50 hover:text-white"><X size={24}/></button>
+          </div>
+          <div className="grid grid-cols-2 gap-6">
+            <div><label className="text-xs uppercase tracking-wider text-cream/70 font-medium mb-2 block">Client Name</label><input required value={form.name} onChange={e=>setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:border-mint focus:outline-none" /></div>
+            <div><label className="text-xs uppercase tracking-wider text-cream/70 font-medium mb-2 block">Role/Company</label><input required value={form.role} onChange={e=>setForm({...form, role: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:border-mint focus:outline-none" /></div>
+            <div className="col-span-2"><label className="text-xs uppercase tracking-wider text-cream/70 font-medium mb-2 block">Review Text</label><textarea required value={form.text} rows={4} onChange={e=>setForm({...form, text: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:border-mint focus:outline-none resize-none" /></div>
+            <div className="col-span-2 p-6 border border-dashed border-white/20 rounded-xl flex items-center justify-center bg-white/5"><input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm cursor-pointer" /></div>
+          </div>
+          <div className="flex justify-end gap-4 mt-6">
+            <button type="button" onClick={()=>setEditingId(null)} className="px-6 py-3 font-bold rounded-xl text-cream/70 hover:bg-white/10">Cancel</button>
+            <button type="submit" disabled={loading} className="bg-mint text-base font-bold px-8 py-3 rounded-xl flex items-center gap-2 hover:bg-white">{loading ? <Loader2 className="animate-spin" size={18}/> : <Check size={18}/>} Save Review</button>
+          </div>
+        </form>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {items.map(t => (
+          <div key={t.id} className="bg-[#0B192C] border border-white/5 rounded-3xl p-6 flex gap-6 hover:border-white/10 transition-colors">
+            <img src={t.image_url} alt={t.name} className="w-16 h-16 rounded-full object-cover shrink-0 bg-white/5" />
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-white">{t.name}</h3>
+              <p className="text-xs text-mint mb-3">{t.role}</p>
+              <p className="text-sm text-cream/70 mb-4">{t.text}</p>
+              <div className="flex gap-2">
+                <button onClick={()=>edit(t)} className="text-xs font-bold text-cream/50 hover:text-mint transition-colors">Edit</button>
+                <span className="text-cream/20">•</span>
+                <button onClick={()=>remove(t.id)} className="text-xs font-bold text-red-500 hover:text-red-400 transition-colors">Delete</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 const SiteAssetsManager = () => {
   const [items, setItems] = useState<any[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [assetKey, setAssetKey] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Common keys for predefined assets
-  const predefinedKeys = [
-    "logo_image", 
-    "founder_image", 
-    "why_choose_us_1",
-    "trust_avatar_1",
-    "trust_avatar_2",
-    "trust_avatar_3"
-  ];
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'site_assets'), (snap) => {
-      setItems(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'site_assets'));
-    return () => unsub();
+    return onSnapshot(collection(db, 'site_assets'), snap => setItems(snap.docs.map(d => ({id: d.id, ...d.data()}))));
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const save = async (e: any) => {
     e.preventDefault();
-    if (!file || !assetKey) return alert("Image and Asset Key required");
-    setIsSubmitting(true);
+    if (!file || !assetKey) return;
+    setLoading(true);
     try {
-      const webpBlob = await convertToWebP(file);
-      const storageRef = ref(storage, `site_assets/${Date.now()}_original.webp`);
-      await uploadBytes(storageRef, webpBlob, { contentType: 'image/webp' });
-      const url = await getDownloadURL(storageRef);
-      // Let's delete the old one with the same key if it exists
+      const refObj = ref(storage, `site_assets/${assetKey}_${Date.now()}.webp`);
+      await uploadBytes(refObj, await convertToWebP(file), { contentType: 'image/webp' });
+      const url = await getDownloadURL(refObj);
       const existing = items.find(i => i.key === assetKey);
-      if (existing) {
-        await deleteDoc(doc(db, 'site_assets', existing.id));
-      }
-      await addDoc(collection(db, 'site_assets'), {
-        key: assetKey, image_url: url, updated_at: new Date().toISOString()
-      });
+      if (existing) await deleteDoc(doc(db, 'site_assets', existing.id));
+      await addDoc(collection(db, 'site_assets'), { key: assetKey, image_url: url });
       setFile(null); setAssetKey("");
-    } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, 'site_assets');
-    }
-    setIsSubmitting(false);
-  };
+    } catch(err: any) { alert(err) }
+    setLoading(false);
+  }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete asset?")) return;
-    try {
-      await deleteDoc(doc(db, 'site_assets', id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `site_assets/${id}`);
-    }
-  };
+  const keys = ["founder_image", "why_choose_us_1"];
 
   return (
-    <div>
-      <h1 className="text-3xl font-display font-bold text-white mb-8">Site Assets Manager</h1>
-      
-      <form onSubmit={handleSubmit} className="mb-10 p-6 glass-card border border-white/5 space-y-4">
-        <h3 className="text-lg font-bold mb-4">Upload Asset</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <input type="text" placeholder="Asset Key (e.g. founder_image)" value={assetKey} onChange={e=>setAssetKey(e.target.value)} list="asset-keys" required className="bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:border-mint" />
-          <datalist id="asset-keys">
-            {predefinedKeys.map(k => <option key={k} value={k} />)}
-          </datalist>
-          <div className="p-2 border border-dashed border-white/20 rounded-lg flex items-center bg-white/5">
-            <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm w-full" required />
-          </div>
-        </div>
-        <button type="submit" disabled={isSubmitting} className="w-full bg-mint text-base font-bold py-3 rounded-lg flex justify-center items-center gap-2 hover:bg-white transition-colors">
-          {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <UploadCloud size={18} />} Update/Add Asset
-        </button>
-      </form>
+    <div className="p-10 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <h1 className="text-4xl font-display font-bold text-white mb-4">Site Images</h1>
+      <p className="text-cream/60 text-lg mb-10">Manage distinct images shown throughout the website.</p>
 
-      <div className="grid grid-cols-3 gap-6">
-        {items.map(a => (
-          <div key={a.id} className="glass-card overflow-hidden group border border-white/5">
-            <img src={a.image_url} alt={a.key} className="w-full h-40 object-cover" />
-            <div className="p-4 flex justify-between items-center">
-              <div>
-                <h4 className="font-bold text-white font-mono text-sm">{a.key}</h4>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        <form onSubmit={save} className="bg-[#0B192C] p-8 rounded-3xl border border-white/5 space-y-6">
+          <h2 className="text-2xl font-bold text-white mb-6">Upload Image</h2>
+          <div>
+            <label className="text-xs uppercase tracking-wider text-cream/70 font-medium mb-2 block">Placement Key</label>
+            <input required list="asset_keys" value={assetKey} onChange={e=>setAssetKey(e.target.value)} placeholder="e.g. founder_image" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:border-mint focus:outline-none" />
+            <datalist id="asset_keys">{keys.map(k=><option key={k} value={k}/>)}</datalist>
+          </div>
+          <div className="p-6 border border-dashed border-white/20 rounded-xl flex items-center justify-center bg-white/5">
+            <input required type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm" />
+          </div>
+          <button type="submit" disabled={loading} className="w-full bg-mint text-base font-bold py-4 rounded-xl flex justify-center items-center gap-2 hover:bg-white">{loading ? <Loader2 className="animate-spin" /> : "Set Image"}</button>
+        </form>
+
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold text-white px-2">Current Placements</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {items.map(a => (
+              <div key={a.id} className="bg-[#0B192C] rounded-2xl overflow-hidden border border-white/5 relative group">
+                <img src={a.image_url} className="w-full h-48 object-cover" />
+                <div className="absolute inset-0 bg-black/60 p-4 flex flex-col justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                  <h3 className="font-mono text-xs text-mint font-bold mb-2">{a.key}</h3>
+                  <button onClick={async()=>{ if(confirm('Delete?')) await deleteDoc(doc(db, 'site_assets', a.id)); }} className="text-xs text-white bg-red-500 py-2 rounded-lg font-bold text-center">Delete Image</button>
+                </div>
               </div>
-              <button onClick={() => handleDelete(a.id)} className="text-red-400 hover:text-red-300 p-1">
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const ProjectManager = () => {
-  const [items, setItems] = useState<any[]>([]);
-  const [title, setTitle] = useState("");
-  const [type, setType] = useState("");
-  const [link, setLink] = useState("");
-  const [description, setDescription] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'projects'), (snap) => {
-      setItems(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'projects'));
-    return () => unsub();
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file) return alert("Image required");
-    setIsSubmitting(true);
-    try {
-      const webpBlob = await convertToWebP(file);
-      const storageRef = ref(storage, `projects/${Date.now()}_original.webp`);
-      await uploadBytes(storageRef, webpBlob, { contentType: 'image/webp' });
-      const url = await getDownloadURL(storageRef);
-      await addDoc(collection(db, 'projects'), {
-        title, type, description, link: link || "https://", image_url: url, created_at: new Date().toISOString()
-      });
-      setTitle(""); setType(""); setLink(""); setDescription(""); setFile(null);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, 'projects');
-    }
-    setIsSubmitting(false);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete project?")) return;
-    try {
-      await deleteDoc(doc(db, 'projects', id));
-    } catch (err) {
-       handleFirestoreError(err, OperationType.DELETE, `projects/${id}`);
-    }
-  };
-
-  return (
-    <div>
-      <h1 className="text-3xl font-display font-bold text-white mb-8">Projects Manager</h1>
-      
-      <form onSubmit={handleSubmit} className="mb-10 p-6 glass-card border border-white/5 space-y-4">
-        <h3 className="text-lg font-bold mb-4">Add New Project</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <input type="text" placeholder="Project Title" value={title} onChange={e=>setTitle(e.target.value)} required className="bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:border-mint" />
-          <input type="text" placeholder="Category (e.g. Web Design)" value={type} onChange={e=>setType(e.target.value)} required className="bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:border-mint" />
-          <input type="url" placeholder="Project Link (Optional)" value={link} onChange={e=>setLink(e.target.value)} className="col-span-2 bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:border-mint" />
-          <textarea placeholder="Description (Optional)" value={description} onChange={e=>setDescription(e.target.value)} rows={3} className="col-span-2 bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:border-mint resize-none" />
-          <div className="col-span-2 p-4 border border-dashed border-white/20 rounded-lg flex items-center justify-center">
-            <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm" required />
+            ))}
           </div>
         </div>
-        <button type="submit" disabled={isSubmitting} className="w-full bg-mint text-base font-bold py-3 rounded-lg flex justify-center items-center gap-2 hover:bg-white transition-colors">
-          {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <UploadCloud size={18} />} Upload Project
-        </button>
-      </form>
-
-      <div className="grid grid-cols-3 gap-6">
-        {items.map(p => (
-          <div key={p.id} className="glass-card overflow-hidden group border border-white/5">
-            <img src={p.image_url} alt={p.title} className="w-full h-40 object-cover" />
-            <div className="p-4 flex justify-between items-start">
-              <div>
-                <h4 className="font-bold text-white leading-tight">{p.title}</h4>
-                <p className="text-xs text-mint mt-1">{p.type}</p>
-              </div>
-              <button onClick={() => handleDelete(p.id)} className="text-red-400 hover:text-red-300 p-1">
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
-  );
-};
+  )
+}
 
-const TestimonialManager = () => {
-  const [items, setItems] = useState<any[]>([]);
-  const [name, setName] = useState("");
-  const [role, setRole] = useState("");
-  const [text, setText] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'testimonials'), (snap) => {
-      setItems(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'testimonials'));
-    return () => unsub();
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file) return alert("Client photo required");
-    setIsSubmitting(true);
-    try {
-      const webpBlob = await convertToWebP(file);
-      const storageRef = ref(storage, `testimonials/${Date.now()}_original.webp`);
-      await uploadBytes(storageRef, webpBlob, { contentType: 'image/webp' });
-      const url = await getDownloadURL(storageRef);
-      await addDoc(collection(db, 'testimonials'), {
-        name, role, text, image_url: url, created_at: new Date().toISOString()
-      });
-      setName(""); setRole(""); setText(""); setFile(null);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, 'testimonials');
-    }
-    setIsSubmitting(false);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete testimonial?")) return;
-    try {
-      await deleteDoc(doc(db, 'testimonials', id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `testimonials/${id}`);
-    }
-  };
-
+const SettingsManager = () => {
+  const [links, setLinks] = useState({ linkedin: "", website: "" });
+  const [loading, setLoading] = useState(false);
+  useEffect(() => { return onSnapshot(doc(db, 'settings', 'global'), snap => { if(snap.exists()) setLinks({ linkedin: snap.data().founder_linkedin || "", website: snap.data().founder_website || "" }); }); }, []);
+  const save = async(e: any) => { e.preventDefault(); setLoading(true); try { await setDoc(doc(db, 'settings', 'global'), { founder_linkedin: links.linkedin, founder_website: links.website }, { merge: true }); alert('Saved!'); } catch(err) { alert(err) } setLoading(false); }
   return (
-    <div>
-      <h1 className="text-3xl font-display font-bold text-white mb-8">Testimonials</h1>
-      
-      <form onSubmit={handleSubmit} className="mb-10 p-6 glass-card border border-white/5 space-y-4">
-        <h3 className="text-lg font-bold mb-4">Add Testimonial</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <input type="text" placeholder="Client Name" value={name} onChange={e=>setName(e.target.value)} required className="bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:border-mint" />
-          <input type="text" placeholder="Role / Company" value={role} onChange={e=>setRole(e.target.value)} required className="bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:border-mint" />
-          <textarea placeholder="Testimonial text..." value={text} onChange={e=>setText(e.target.value)} required rows={3} className="col-span-2 bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:border-mint resize-none" />
-          <div className="col-span-2 p-4 border border-dashed border-white/20 rounded-lg flex items-center justify-center">
-            <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm" title="Client Photo" required />
-          </div>
-        </div>
-        <button type="submit" disabled={isSubmitting} className="w-full bg-mint text-base font-bold py-3 rounded-lg flex justify-center items-center gap-2 hover:bg-white transition-colors">
-          {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <UploadCloud size={18} />} Save Testimonial
-        </button>
+    <div className="p-10 max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <h1 className="text-3xl font-display font-bold text-white mb-8">Global Variables</h1>
+      <form onSubmit={save} className="bg-[#0B192C] p-8 rounded-3xl border border-white/5 space-y-6">
+        <div><label className="text-xs uppercase tracking-wider text-cream/70 font-medium mb-2 block">Founder LinkedIn</label><input type="url" value={links.linkedin} onChange={e=>setLinks({...links, linkedin: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:border-mint focus:outline-none" /></div>
+        <div><label className="text-xs uppercase tracking-wider text-cream/70 font-medium mb-2 block">Founder Website</label><input type="url" value={links.website} onChange={e=>setLinks({...links, website: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:border-mint focus:outline-none" /></div>
+        <button type="submit" disabled={loading} className="w-full bg-mint text-base font-bold py-4 rounded-xl hover:bg-white">{loading ? <Loader2 className="animate-spin inline mr-2" /> : "Save Requirements"}</button>
       </form>
-
-      <div className="grid grid-cols-2 gap-6">
-        {items.map(t => (
-          <div key={t.id} className="glass-card p-5 border border-white/5 flex gap-4">
-            <img src={t.image_url} alt="" className="w-16 h-16 rounded-full object-cover shrink-0" />
-            <div className="flex-1">
-              <h4 className="font-bold text-white">{t.name}</h4>
-              <p className="text-xs text-mint mb-2">{t.role}</p>
-              <p className="text-sm text-cream/70 line-clamp-3 md:line-clamp-none">{t.text}</p>
-            </div>
-            <button onClick={() => handleDelete(t.id)} className="text-red-400 hover:text-red-300 p-1 self-start">
-              <Trash2 size={16} />
-            </button>
-          </div>
-        ))}
-      </div>
     </div>
-  );
-};
-
-const GalleryManager = () => {
-  const [items, setItems] = useState<any[]>([]);
-  const [file, setFile] = useState<File | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'gallery'), (snap) => {
-      setItems(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'gallery'));
-    return () => unsub();
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file) return alert("Image required");
-    setIsSubmitting(true);
-    try {
-      const webpBlob = await convertToWebP(file);
-      const storageRef = ref(storage, `gallery/${Date.now()}_original.webp`);
-      await uploadBytes(storageRef, webpBlob, { contentType: 'image/webp' });
-      const url = await getDownloadURL(storageRef);
-      await addDoc(collection(db, 'gallery'), {
-        image_url: url, group_id: 'all', created_at: new Date().toISOString()
-      });
-      setFile(null);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, 'gallery');
-    }
-    setIsSubmitting(false);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete image?")) return;
-    try {
-      await deleteDoc(doc(db, 'gallery', id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `gallery/${id}`);
-    }
-  };
-
-  return (
-    <div>
-      <h1 className="text-3xl font-display font-bold text-white mb-8">Image Gallery</h1>
-      
-      <form onSubmit={handleSubmit} className="mb-10 p-6 glass-card border border-white/5 flex gap-4 items-center">
-        <div className="flex-1 p-4 border border-dashed border-white/20 rounded-lg flex items-center bg-white/5">
-          <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm w-full" required />
-        </div>
-        <button type="submit" disabled={isSubmitting} className="bg-mint text-base px-8 font-bold h-[58px] rounded-lg flex justify-center items-center gap-2 hover:bg-white transition-colors">
-          {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <UploadCloud size={18} />} Upload to Gallery
-        </button>
-      </form>
-
-      <div className="grid grid-cols-4 md:grid-cols-5 gap-4">
-        {items.map(g => (
-          <div key={g.id} className="relative group rounded-xl overflow-hidden aspect-square border border-white/10">
-            <img src={g.image_url} alt="Gallery" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <button onClick={() => handleDelete(g.id)} className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-transform hover:scale-110">
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
+  )
+}

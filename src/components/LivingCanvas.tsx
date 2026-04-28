@@ -11,7 +11,7 @@ export function LivingCanvas() {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-base pointer-events-none">
       {/* Aurora Blobs */}
-      <div className="absolute inset-0 opacity-40 mix-blend-screen">
+      <div className="absolute inset-0 opacity-40">
         <motion.div
           animate={{
             x: ['-10%', '10%', '-5%', '-10%'],
@@ -19,7 +19,8 @@ export function LivingCanvas() {
             scale: [1, 1.1, 0.9, 1],
           }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-teal/30 blur-[120px]"
+          className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] rounded-full"
+          style={{ background: 'radial-gradient(circle at center, rgba(7, 122, 125, 0.3) 0%, transparent 70%)' }}
         />
         <motion.div
           animate={{
@@ -28,7 +29,8 @@ export function LivingCanvas() {
             scale: [0.9, 1.1, 1, 0.9],
           }}
           transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-          className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-mint/20 blur-[100px]"
+          className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full"
+          style={{ background: 'radial-gradient(circle at center, rgba(0, 173, 181, 0.2) 0%, transparent 70%)' }}
         />
       </div>
 

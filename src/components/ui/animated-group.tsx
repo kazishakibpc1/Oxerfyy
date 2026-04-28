@@ -19,6 +19,7 @@ type PresetType =
 type AnimatedGroupProps = {
   children: ReactNode;
   className?: string;
+  itemClassName?: string;
   variants?: {
     container?: Variants;
     item?: Variants;
@@ -140,6 +141,7 @@ const presetVariants: Record<
 function AnimatedGroup({
   children,
   className,
+  itemClassName,
   variants,
   preset,
 }: AnimatedGroupProps) {
@@ -157,7 +159,7 @@ function AnimatedGroup({
       className={cn(className)}
     >
       {React.Children.map(children, (child, index) => (
-        <motion.div key={index} variants={itemVariants}>
+        <motion.div key={index} variants={itemVariants} className={itemClassName}>
           {child}
         </motion.div>
       ))}

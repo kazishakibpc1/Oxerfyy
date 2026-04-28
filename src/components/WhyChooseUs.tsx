@@ -63,7 +63,7 @@ export function WhyChooseUs() {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="relative"
         >
-          <div className="aspect-[4/5] rounded-[2.5rem] overflow-hidden bg-white/5 border border-white/10">
+          <div className="aspect-[4/5] rounded-[2.5rem] overflow-hidden bg-white/5 border border-white/10 mb-16 md:mb-0">
             <img 
               src={imageUrl} 
               alt="Workspace" 
@@ -76,10 +76,10 @@ export function WhyChooseUs() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute -bottom-10 -left-10 bg-mint text-base p-10 rounded-[2rem] max-w-sm shadow-2xl"
+            className="absolute -bottom-12 -left-4 md:-bottom-10 md:-left-10 bg-mint text-base p-6 md:p-10 rounded-[2rem] max-w-[85%] md:max-w-sm shadow-2xl"
           >
-            <p className="text-6xl font-display font-bold mb-4 tracking-tighter">100%</p>
-            <p className="font-medium text-lg leading-snug">Client Satisfaction Rate across all our delivered projects.</p>
+            <p className="text-5xl md:text-6xl font-display font-bold mb-2 md:mb-4 tracking-tighter">100%</p>
+            <p className="font-medium text-base md:text-lg leading-snug">Client Satisfaction Rate across all our delivered projects.</p>
           </motion.div>
         </motion.div>
       </div>

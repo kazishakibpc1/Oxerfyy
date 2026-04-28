@@ -5,7 +5,7 @@ import { Facebook, BadgeCheck } from 'lucide-react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
-const defaultTestimonials = [
+export const defaultTestimonials = [
   {
     text: "Kazi at Oxerfy completely transformed my Meta ad management with his creative approach. Oader kaaj er dhoron khub e professional. Amar page er conversions aager cheye onek bereche. Anyone needing real results shouldn't think twice. Thank you so much for the amazing support!",
     image: "https://i.pravatar.cc/150?u=nasrin",

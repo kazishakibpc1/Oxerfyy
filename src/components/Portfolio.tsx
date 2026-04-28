@@ -7,7 +7,7 @@ import { db } from '../lib/firebase';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const defaultProjects = [
+export const defaultProjects = [
   {
     title: "RinishBD",
     type: "Meta Ads & Strategy",
@@ -87,22 +87,25 @@ export function Portfolio() {
     if (!section || !scroll) return;
 
     let ctx = gsap.context(() => {
-      gsap.to(scroll, {
-        x: () => {
-          const amount = scroll.scrollWidth - window.innerWidth;
-          return amount > 0 ? -amount : 0;
-        },
-        ease: "none",
-        scrollTrigger: {
-          trigger: section,
-          pin: true,
-          scrub: 1,
-          end: () => {
+      let mm = gsap.matchMedia();
+
+      mm.add("(min-width: 768px)", () => {
+        gsap.to(scroll, {
+          x: () => {
             const amount = scroll.scrollWidth - window.innerWidth;
-            return "+=" + (amount > 0 ? amount : 1);
+            return amount > 0 ? -amount : 0;
           },
-          invalidateOnRefresh: true,
-        }
+          ease: "none",
+          scrollTrigger: {
+            trigger: section,
+            pin: true,
+            scrub: 1,
+            end: () => {
+              const amount = scroll.scrollWidth - window.innerWidth;
+              return "+=" + (amount > 0 ? amount : 1);
+            }
+          }
+        });
       });
     }, section);
 
@@ -112,13 +115,13 @@ export function Portfolio() {
   }, []);
 
   return (
-    <section id="work" ref={sectionRef} className="relative w-full h-screen min-h-[700px] 2xl:min-h-[850px] overflow-hidden z-10 bg-[#0B192C] border-t border-white/10 flex flex-col">
-      <div className="pt-12 pl-12 md:pt-20 md:pl-20 z-20 shrink-0">
+    <section id="work" ref={sectionRef} className="relative w-full md:h-[100dvh] md:min-h-[700px] 2xl:min-h-[850px] overflow-hidden z-10 bg-[#0B192C] border-t border-white/10 flex flex-col py-16 md:py-0">
+      <div className="px-6 md:pt-20 md:pl-20 z-20 shrink-0 mb-10 md:mb-0">
         <h2 className="text-5xl md:text-7xl font-display font-bold">Selected Work</h2>
       </div>
       
-      <div className="flex-1 overflow-visible flex items-center">
-        <div ref={scrollRef} className="flex w-max items-center px-12 md:px-20 gap-12">
+      <div className="flex-1 overflow-visible flex md:items-center">
+        <div ref={scrollRef} className="flex flex-col md:flex-row w-full md:w-max md:items-center px-6 md:px-20 gap-8 md:gap-12">
           {projects.map((project, i) => (
             <ProjectCard key={i} project={project} index={i} />
           ))}
@@ -149,7 +152,7 @@ function ProjectCard({ project, index }: { project: any, index: number }) {
   }, []);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current || !imageRef.current) return;
+    if (!cardRef.current || !imageRef.current || window.innerWidth < 768) return;
     
     const rect = cardRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -171,7 +174,7 @@ function ProjectCard({ project, index }: { project: any, index: number }) {
   };
 
   const handleMouseLeave = () => {
-    if (!cardRef.current || !imageRef.current) return;
+    if (!cardRef.current || !imageRef.current || window.innerWidth < 768) return;
     
     const currentCard = cardRef.current as any;
     if (currentCard.xTo) {
@@ -182,13 +185,25 @@ function ProjectCard({ project, index }: { project: any, index: number }) {
     }
   };
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
+  const animationProps = isMobile ? {
+    initial: { y: 50, opacity: 0 },
+    whileInView: { y: 0, opacity: 1 },
+    transition: { duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] as any }
+  } : {
+    initial: { x: -100 * index, y: 50, opacity: 0, rotateZ: -5 + index * 2 },
+    whileInView: { x: 0, y: 0, opacity: 1, rotateZ: 0 },
+    transition: { duration: 0.8, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] as any }
+  };
+
   return (
     <motion.div 
-      initial={{ x: -100 * index, y: 50, opacity: 0, rotateZ: -5 + index * 2 }}
-      whileInView={{ x: 0, y: 0, opacity: 1, rotateZ: 0 }}
-      viewport={{ once: true, margin: "-100px" }}
-      transition={{ duration: 0.8, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
-      className="w-[85vw] md:w-[480px] lg:w-[500px] xl:w-[600px] 2xl:w-[750px] h-[60vh] md:h-[65vh] min-h-[450px] max-h-[850px] flex-shrink-0"
+      initial={animationProps.initial}
+      whileInView={animationProps.whileInView}
+      viewport={{ once: true, margin: isMobile ? "-20px" : "-50px" }}
+      transition={animationProps.transition}
+      className="w-full md:w-[480px] lg:w-[500px] xl:w-[600px] 2xl:w-[750px] h-auto md:h-[65vh] md:min-h-[450px] md:max-h-[850px] flex-shrink-0"
       style={{ perspective: '1000px' }}
     >
       <div 
@@ -201,7 +216,7 @@ function ProjectCard({ project, index }: { project: any, index: number }) {
           href={project.link || "#"}
           target="_blank"
           rel="noopener noreferrer"
-          className="h-[50%] md:h-[55%] shrink-0 overflow-hidden relative border-b border-white/10 block group/image cursor-pointer"
+          className="h-[250px] md:h-[55%] shrink-0 overflow-hidden relative border-b border-white/10 block group/image cursor-pointer"
         >
           <img 
             ref={imageRef}
